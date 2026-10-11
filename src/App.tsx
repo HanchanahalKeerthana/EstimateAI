@@ -785,7 +785,7 @@ const authService = {
 
 const aiService = {
   getApiKey: () => {
-    return import.meta.env.VITE_GEMINI_API_KEY || localStorage.getItem('VITE_GEMINI_API_KEY') || '';
+    return import.meta.env.VITE_GEMINI_API_KEY || localStorage.getItem('VITE_GEMINI_API_KEY') || 'server-side';
   },
 
   setApiKey: (key) => {
@@ -931,7 +931,7 @@ const aiService = {
     if (apiKey) {
       try {
         const promptText = `You are the requirements analyst inside EstimateAI. Generate up to ${target} NEW requirements for THIS EXACT PROJECT. Treat the project type as a hint, not a fixed domain. Infer the real product/domain, user journey, business problem and important workflows from the project name, project type, full description, and existing requirements. The project may be from ANY domain, including a domain you have never seen before. Do NOT force it into travel, e-commerce, mobile, fintech, healthcare or any predefined category. If the description says agriculture, generate agriculture requirements; if it says cybersecurity, generate cybersecurity requirements; if it describes a novel system, infer its needs from the description. Existing requirements that MUST NOT be repeated or paraphrased: "${existingText}". Make this response meaningfully different from earlier suggestions, not a rewording of the same ideas. Every suggestion must be traceably useful to the stated project purpose. Avoid generic filler such as login, dashboard, notifications, settings, reports or CRUD unless the project description specifically makes that capability important. Cover functional and non-functional needs when appropriate. If the project does not need more requirements, return an empty array. Return ONLY a raw JSON array. Each object must have: text, type (Functional or Non-Functional), complexity (Low, Medium, High, or Critical). PROJECT NAME: ${projectName}. PROJECT TYPE: ${projectType}. PROJECT DESCRIPTION: ${description}`;
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${apiKey}`, {
+        const response = await fetch(`/api/gemini`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }], generationConfig: { temperature: 0.85, topP: 0.92 } })
         });
@@ -963,7 +963,7 @@ const aiService = {
     if (apiKey) {
       try {
         const promptText = `You are the product architect inside EstimateAI. Generate up to ${target} NEW, actionable features for THIS EXACT PROJECT. Treat the project type as a hint, not a fixed template. Infer the actual domain, target users, user journey, business problem, data/workflows and MVP capabilities from the project name, project type, full description and existing requirements/features. The project can be ANY domain, including an unfamiliar or novel domain. Do not assume that a mobile project needs generic mobile features, or that a web project needs generic web features. If the description is for agriculture, suggest agriculture capabilities; if it is for cybersecurity, suggest cybersecurity capabilities; if it is for an unusual technical/scientific system, derive features from the stated workflow. Existing features that MUST NOT be repeated or paraphrased: "${existingText}". Make this response meaningfully different from earlier suggestions, not a rewording of the same ideas. Suggest features that directly support the project's stated outcome. Do not add generic login, dashboard, notifications, settings, search or admin features unless the project description makes them materially necessary. Cover important MVP and domain-specific supporting capabilities. If no meaningful new feature remains, return an empty array. Return ONLY a raw JSON array. Each object must have: name, description, complexity (Low, Medium, High, Critical), priority (High, Medium, or Low), dependencies (None, Auth, or another feature name). PROJECT NAME: ${projectName}. PROJECT TYPE: ${projectType}. PROJECT DESCRIPTION: ${description}`;
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${apiKey}`, {
+        const response = await fetch(`/api/gemini`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }], generationConfig: { temperature: 0.95, topP: 0.95 } })
         });
@@ -988,7 +988,7 @@ const aiService = {
     if (!apiKey) return { ...fallback, source: 'EstimateAI Context Engine', live: false };
     try {
       const promptText = `Act as a product-specific market research analyst. Do NOT give a generic software/SaaS answer. First infer the exact project category and user problem from the project type, name, description, target users, business model, requirements and selected features. Then analyze 3-5 EXISTING solutions that actually serve that same category or customer job (for example, travel booking solutions for a travel app, food delivery solutions for food delivery, lending/payment solutions for fintech). For each competitor, explain what part of the user's proposed workflow it covers, where it is stronger, and where the proposed project could differ. Also explain what customers in THIS category usually prefer, including the practical features, trust factors, speed, price/fee expectations, convenience and service experience that matter. Do not invent company facts, pricing, users or market-share numbers. If a real competitor cannot be identified confidently, say that live verification is required instead of fabricating one. Return ONLY JSON with: competitors (array of {name, category, whyRelevant, strengths, weaknesses, pricingNote}), marketGaps (array), differentiation (string), customerSegments (array of {name, need}), customerPreferences (array of strings), researchCaveat (string). Project: ${JSON.stringify({name: project.name, type: project.type, description: project.description, targetUsers: project.targetUsers, businessModel: project.businessModel, requirements: project.requirements, features: project.features})}`;
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${apiKey}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }] }) });
+      const response = await fetch(`/api/gemini`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }] }) });
       const data = await response.json();
       const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
       const clean = raw.replace(/```json/g, '').replace(/```/g, '').trim();
@@ -1020,7 +1020,7 @@ const aiService = {
     if (apiKey) {
       try {
         const promptText = `You are the project-specific AI analysis layer of EstimateAI. Analyze THIS exact project, not a generic software template. Infer the actual domain and user journey from the project type, name, description, target users, business model, requirements and selected features. For almost every selected feature, explain or recommend supporting capabilities that are genuinely relevant to this domain. Do not repeat basic authentication/login/dashboard features unless they are materially important to this project. For technology recommendations, choose 4-6 technologies/components that fit THIS project's domain and workflow; do not return the same React/Node/PostgreSQL trio for unrelated projects. For each technology, explain the project-specific reason. Also identify domain-specific security, data, integration, performance or operational concerns. Do not replace or invent the supplied numeric calculations. Project: ${JSON.stringify({ name: projectName, type: projectType, description, targetUsers: project.targetUsers, expectedUsers: project.expectedUsers, businessModel: project.businessModel, requirements: project.requirements, features: project.features, assumptions: project.assumptions })}. Calculated estimates: ${JSON.stringify(estimates)}. Existing rule-based constraints: ${JSON.stringify(constraints)}. Existing rule-based risks: ${JSON.stringify(risks)}. Return ONLY JSON with: summary (string), recommendation {label, explanation}, userSegments {primary, secondary, primarySource, secondarySource, explanation}, constraints (array of objects with constraint,currentValue,expectedValue,severity,impact,solution), risks (array of objects with risk,severity,probability,impact,mitigation), techStack (array of 4-6 objects with category,current,recommended,reason,costDiff,accepted). The primary user must be the person/group that directly uses the product to accomplish the main outcome. The secondary user must be a distinct supporting/operator/admin/stakeholder group when one exists. Do not simply label them "customers" and "admins"; describe who they actually are for THIS project. Clearly mark these as AI suggestions unless they come directly from the supplied targetUsers. Recommendations must clearly explain why each technology fits THIS project and must not be generic defaults.`;
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${apiKey}`, {
+        const response = await fetch(`/api/gemini`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }] })
         });
@@ -1114,7 +1114,7 @@ Input: ${JSON.stringify(text)}
 `;
 
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${apiKey}`,
+    `/api/gemini`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -2673,12 +2673,6 @@ const costExplanationContext = {
 const handleGenerateCostExplanation = async () => {
   const apiKey = aiService.getApiKey();
 
-  if (!apiKey) {
-    setCostExplanationError(
-      'Add your Gemini API key in Settings before generating an explanation.'
-    );
-    return;
-  }
 
   setCostExplanationLoading(true);
   setCostExplanationError('');
@@ -2766,7 +2760,9 @@ ${JSON.stringify(costExplanationContext, null, 2)}
 
 
       const response = await fetch(
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=' + encodeURIComponent(apiKey),
+        
+        '/api/gemini',
+
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
