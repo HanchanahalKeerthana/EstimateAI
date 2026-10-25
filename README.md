@@ -56,8 +56,6 @@ Open the local URL provided in the terminal.
 
 Configure Firebase Authentication with the sign-in providers required by the application. Add the Gemini API key through the application's Settings interface when prompted.
 
-Never commit API keys, passwords, or private credentials to the repository.
-
 ## Project Status
 
 EstimateAI is a hackathon prototype focused on cost estimation, feasibility analysis, resource planning, and AI-assisted project decisions.
